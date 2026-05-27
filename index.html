@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Слизневый кликер</title>
+  <style>
+    :root {
+      --bg: #090d12;
+      --panel: rgba(18, 27, 35, 0.82);
+      --panel-strong: rgba(25, 39, 48, 0.94);
+      --line: rgba(141, 232, 197, 0.22);
+      --text: #edf8f4;
+      --muted: #a7b9b3;
+      --mint: #56e5b1;
+      --cyan: #65d6ff;
+      --gold: #ffd36a;
+      --danger: #ff778d;
+      --shadow: rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 15% 12%, rgba(86, 229, 177, 0.12), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(101, 214, 255, 0.12), transparent 24%),
+        linear-gradient(180deg, #0b1118 0%, var(--bg) 58%, #06080c 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+      background-size: 52px 52px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 82%);
+    }
+
+    .app {
+      width: min(1180px, calc(100% - 32px));
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 26px 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 20px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 22px 70px var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .title {
+      display: grid;
+      gap: 4px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 3vw, 2.1rem);
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    .coins {
+      min-width: 190px;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 211, 106, 0.34);
+      border-radius: 8px;
+      background: rgba(255, 211, 106, 0.09);
+      text-align: right;
+      box-shadow: inset 0 0 28px rgba(255, 211, 106, 0.08);
+    }
+
+    .coins-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+    }
+
+    #coinCount {
+      color: var(--gold);
+      font-size: clamp(1.6rem, 4vw, 2.45rem);
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 540px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(101, 214, 255, 0.16);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(13, 22, 29, 0.86), rgba(8, 12, 17, 0.88)),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 38px);
+      box-shadow: inset 0 0 90px rgba(86, 229, 177, 0.05), 0 22px 70px var(--shadow);
+      overflow: hidden;
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      bottom: 70px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.28);
+      filter: blur(9px);
+    }
+
+    .click-zone {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      gap: 18px;
+    }
+
+    .slime-button {
+      width: min(320px, 72vw);
+      aspect-ratio: 1.22 / 1;
+      position: relative;
+      border: 0;
+      cursor: pointer;
+      color: inherit;
+      background: transparent;
+      filter: drop-shadow(0 26px 30px rgba(0, 0, 0, 0.42));
+      transform-origin: center bottom;
+      transition: transform 110ms ease, filter 140ms ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .slime-button:hover {
+      transform: translateY(-4px) scale(1.02);
+      filter: drop-shadow(0 30px 36px rgba(0, 0, 0, 0.48));
+    }
+
+    .slime-button:active,
+    .slime-button.pressed {
+      transform: translateY(8px) scale(1.06, 0.9);
+    }
+
+    .slime-body {
+      position: absolute;
+      inset: 18% 2% 2%;
+      border-radius: 48% 48% 42% 42% / 58% 58% 38% 38%;
+      background:
+        radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.78), transparent 9%),
+        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.18), transparent 28%),
+        linear-gradient(180deg, #77f9cd 0%, #28ce94 58%, #159a72 100%);
+      border: 5px solid #0f6f5a;
+      box-shadow:
+        inset 0 -24px 30px rgba(0, 82, 65, 0.44),
+        inset 0 18px 22px rgba(255, 255, 255, 0.18),
+        0 0 48px rgba(86, 229, 177, 0.3);
+    }
+
+    .slime-body::before,
+    .slime-body::after {
+      content: "";
+      position: absolute;
+      top: 40%;
+      width: 9%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #072c31;
+      box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.25);
+    }
+
+    .slime-body::before {
+      left: 34%;
+    }
+
+    .slime-body::after {
+      right: 34%;
+    }
+
+    .slime-shine {
+      position: absolute;
+      left: 25%;
+      top: 26%;
+      width: 28%;
+      height: 12%;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.36);
+      transform: rotate(-14deg);
+      filter: blur(1px);
+    }
+
+    .slime-smile {
+      position: absolute;
+      left: 42%;
+      top: 55%;
+      width: 16%;
+      height: 8%;
+      border-bottom: 5px solid rgba(7, 44, 49, 0.82);
+      border-radius: 0 0 999px 999px;
+    }
+
+    .click-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid rgba(86, 229, 177, 0.24);
+      border-radius: 8px;
+      background: rgba(13, 24, 29, 0.78);
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .click-info strong {
+      color: var(--mint);
+      font-size: 1.15rem;
+    }
+
+    .float-text {
+      position: absolute;
+      z-index: 5;
+      color: var(--gold);
+      font-weight: 900;
+      text-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+      pointer-events: none;
+      animation: floatUp 720ms ease-out forwards;
+    }
+
+    @keyframes floatUp {
+      from {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(0.9);
+      }
+      to {
+        opacity: 0;
+        transform: translate(-50%, -86px) scale(1.18);
+      }
+    }
+
+    .shop {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 22px 70px var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .shop h2 {
+      margin: 0 0 4px;
+      font-size: 1.22rem;
+    }
+
+    .upgrade {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 8px;
+      background: var(--panel-strong);
+    }
+
+    .upgrade-top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .upgrade-name {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 800;
+    }
+
+    .upgrade-level {
+      flex: 0 0 auto;
+      min-width: 48px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: #08100e;
+      background: var(--mint);
+      text-align: center;
+      font-size: 0.82rem;
+      font-weight: 900;
+    }
+
+    .upgrade p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.94rem;
+    }
+
+    .buy {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid rgba(255, 211, 106, 0.45);
+      border-radius: 8px;
+      cursor: pointer;
+      color: #241909;
+      background: linear-gradient(180deg, #ffe28a, #ffc34f);
+      font: inherit;
+      font-weight: 900;
+      box-shadow: 0 10px 22px rgba(255, 195, 79, 0.18);
+      transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+    }
+
+    .buy:hover:not(:disabled) {
+      transform: translateY(-2px);
+      filter: brightness(1.04);
+    }
+
+    .buy:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .buy:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+      box-shadow: none;
+      filter: grayscale(0.35);
+    }
+
+    .stats {
+      margin-top: auto;
+      display: grid;
+      gap: 8px;
+      padding-top: 4px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .stat-row strong {
+      color: var(--cyan);
+    }
+
+    @media (max-width: 820px) {
+      .app {
+        width: min(100% - 20px, 640px);
+        padding: 10px 0 18px;
+      }
+
+      .topbar,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        display: grid;
+      }
+
+      .coins {
+        width: 100%;
+        text-align: left;
+      }
+
+      .layout {
+        display: grid;
+      }
+
+      .stage {
+        min-height: 410px;
+      }
+
+      .shop {
+        order: 2;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="title">
+        <h1>Слизневый кликер</h1>
+        <p class="subtitle">Кликай по слизню, покупай улучшения, разгоняй добычу.</p>
+      </div>
+      <div class="coins" aria-live="polite">
+        <span class="coins-label">Монеты</span>
+        <span id="coinCount">0</span>
+      </div>
+    </header>
+
+    <section class="layout">
+      <div class="stage" id="stage">
+        <div class="click-zone">
+          <button class="slime-button" id="slimeButton" type="button" aria-label="Кликнуть по слизню">
+            <span class="slime-body">
+              <span class="slime-shine"></span>
+              <span class="slime-smile"></span>
+            </span>
+          </button>
+          <div class="click-info">За клик: <strong id="clickValue">1</strong></div>
+        </div>
+      </div>
+
+      <aside class="shop" aria-label="Магазин улучшений">
+        <h2>Улучшения</h2>
+
+        <article class="upgrade">
+          <div class="upgrade-top">
+            <div>
+              <h3 class="upgrade-name">Прокачка клика</h3>
+              <p>Каждая покупка добавляет +1 монету за клик.</p>
+            </div>
+            <span class="upgrade-level" id="clickLevel">x1</span>
+          </div>
+          <button class="buy" id="buyClick" type="button"></button>
+        </article>
+
+        <article class="upgrade">
+          <div class="upgrade-top">
+            <div>
+              <h3 class="upgrade-name">Помощник</h3>
+              <p>Каждый помощник приносит 1 монету в секунду.</p>
+            </div>
+            <span class="upgrade-level" id="helperLevel">0</span>
+          </div>
+          <button class="buy" id="buyHelper" type="button"></button>
+        </article>
+
+        <div class="stats">
+          <div class="stat-row"><span>В секунду</span><strong id="perSecond">0</strong></div>
+          <div class="stat-row"><span>Всего кликов</span><strong id="totalClicks">0</strong></div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      coins: 0,
+      clickPower: 1,
+      helpers: 0,
+      totalClicks: 0,
+      clickUpgradeCost: 50,
+      helperCost: 50
+    };
+
+    const coinCount = document.getElementById("coinCount");
+    const clickValue = document.getElementById("clickValue");
+    const clickLevel = document.getElementById("clickLevel");
+    const helperLevel = document.getElementById("helperLevel");
+    const perSecond = document.getElementById("perSecond");
+    const totalClicks = document.getElementById("totalClicks");
+    const buyClick = document.getElementById("buyClick");
+    const buyHelper = document.getElementById("buyHelper");
+    const slimeButton = document.getElementById("slimeButton");
+    const stage = document.getElementById("stage");
+
+    function formatNumber(value) {
+      return Math.floor(value).toLocaleString("ru-RU");
+    }
+
+    function render() {
+      coinCount.textContent = formatNumber(state.coins);
+      clickValue.textContent = formatNumber(state.clickPower);
+      clickLevel.textContent = `x${formatNumber(state.clickPower)}`;
+      helperLevel.textContent = formatNumber(state.helpers);
+      perSecond.textContent = `${formatNumber(state.helpers)} / сек`;
+      totalClicks.textContent = formatNumber(state.totalClicks);
+      buyClick.textContent = `Купить за ${formatNumber(state.clickUpgradeCost)}`;
+      buyHelper.textContent = `Купить за ${formatNumber(state.helperCost)}`;
+      buyClick.disabled = state.coins < state.clickUpgradeCost;
+      buyHelper.disabled = state.coins < state.helperCost;
+    }
+
+    function addCoins(amount) {
+      state.coins += amount;
+      render();
+    }
+
+    function showFloatText(amount, event) {
+      const rect = stage.getBoundingClientRect();
+      const text = document.createElement("span");
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      text.className = "float-text";
+      text.textContent = `+${formatNumber(amount)}`;
+      text.style.left = `${x}px`;
+      text.style.top = `${y}px`;
+      stage.appendChild(text);
+      text.addEventListener("animationend", () => text.remove());
+    }
+
+    slimeButton.addEventListener("click", (event) => {
+      state.totalClicks += 1;
+      addCoins(state.clickPower);
+      showFloatText(state.clickPower, event);
+      slimeButton.classList.add("pressed");
+      window.setTimeout(() => slimeButton.classList.remove("pressed"), 120);
+    });
+
+    buyClick.addEventListener("click", () => {
+      if (state.coins < state.clickUpgradeCost) return;
+      state.coins -= state.clickUpgradeCost;
+      state.clickPower += 1;
+      state.clickUpgradeCost = Math.ceil(state.clickUpgradeCost * 1.65);
+      render();
+    });
+
+    buyHelper.addEventListener("click", () => {
+      if (state.coins < state.helperCost) return;
+      state.coins -= state.helperCost;
+      state.helpers += 1;
+      state.helperCost = Math.ceil(state.helperCost * 1.55);
+      render();
+    });
+
+    window.setInterval(() => {
+      if (state.helpers > 0) {
+        addCoins(state.helpers);
+      }
+    }, 1000);
+
+    render();
+  </script>
+</body>
+</html>
